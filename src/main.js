@@ -14,6 +14,7 @@ import createWindow from "./helpers/window";
 // Special module holding environment variables which you declared
 // in config/env_xxx.json file.
 import env from "env";
+console.log(env.name);
 
 // Save userData in separate folders for each environment.
 // Thanks to this you can use production and development versions of the app
@@ -49,22 +50,13 @@ app.on("ready", () => {
     width: 1000,
     height: 600,
     webPreferences: {
-      // Two properties below are here for demo purposes, and are
-      // security hazard. Make sure you know what you're doing
-      // in your production app.
-      nodeIntegration: true,
-      contextIsolation: false,
       // Spectron needs access to remote module
-      enableRemoteModule: env.name === "test"
+      enableRemoteModule: env.name === "production"
     }
   });
 
   mainWindow.loadURL(
-    url.format({
-      pathname: path.join(__dirname, "app.html"),
-      protocol: "file:",
-      slashes: true
-    })
+    "http://localhost:8080"
   );
 
   if (env.name === "development") {
