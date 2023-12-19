@@ -4,7 +4,7 @@ const electron = require("electron");
 const webpack = require("webpack");
 const config = require("./webpack.app.config");
 
-const compiler = webpack(config({ development: true }));
+const compiler = webpack(config({ production: true }));
 let electronStarted = false;
 
 const clearTerminal = () => {
