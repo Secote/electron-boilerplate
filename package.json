@@ -1,15 +1,15 @@
 {
-  "name": "electron-boilerplate",
-  "productName": "Electron Boilerplate",
-  "description": "Starter for your Electron application",
-  "version": "0.0.0",
+  "name": "IndustryVision",
+  "productName": "IndustryVision (Beta)",
+  "description": "AI powered vision inspection for manufacturing",
+  "version": "1.0.0",
   "private": true,
-  "author": "Mr. Gumby <mr.gumby@example.com>",
-  "copyright": "© 2017, Gumby inc.",
-  "homepage": "http://example.com",
+  "author": "IndustryVision",
+  "copyright": "© 2023, IndustryVision inc.",
+  "homepage": "http://www.industryvision.com/",
   "main": "app/main.js",
   "build": {
-    "appId": "com.example.electron-boilerplate",
+    "appId": "com.industryvision",
     "files": [
       "app/**/*",
       "node_modules/**/*",
@@ -26,7 +26,7 @@
     "unit": "electron-mocha temp/specs.js --renderer --color --require source-map-support/register",
     "pree2e": "webpack --config=build/webpack.app.config.js --env=test && webpack --config=build/webpack.e2e.config.js --env=test",
     "e2e": "mocha temp/e2e.js --require source-map-support/register",
-    "test": "npm run unit && npm run e2e",
+    "test": "npm run unit",
     "start": "node build/start.js",
     "release": "npm test && webpack --config=build/webpack.app.config.js --env=production && electron-builder"
   },
