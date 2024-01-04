@@ -1,0 +1,498 @@
+# Copyright (C) 2018-2022 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+
+services:
+  annotation_db:
+    container_name: annotation_db
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_DB: cvat
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - annotation_db:/var/lib/postgresql/data
+    networks:
+      secote:
+        ipv4_address: 172.19.0.15
+
+  annotation_redis:
+    container_name: annotation_redis
+    image: redis:7.0-alpine
+    restart: always
+    networks:
+      secote:
+        ipv4_address: 172.19.0.2
+
+  annotation_server:
+    container_name: annotation_server
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_server:latest
+    restart: always
+    depends_on:
+      - annotation_redis
+      - annotation_db
+      - annotation_opa
+    environment:
+      DJANGO_MODWSGI_EXTRA_ARGS: ''
+      ALLOWED_HOSTS: '*'
+      CVAT_REDIS_HOST: 'annotation_redis'
+      CVAT_POSTGRES_HOST: 'annotation_db'
+      ADAPTIVE_AUTO_ANNOTATION: 'false'
+      IAM_OPA_BUNDLE: '1'
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      NUMPROCS: 1
+      DJANGO_LOG_SERVER_HOST: vector
+      DJANGO_LOG_SERVER_PORT: 80
+      CLICKHOUSE_HOST: clickhouse
+      CVAT_ANALYTICS: 1
+      CVAT_BASE_URL:
+      CVAT_SERVERLESS: 1
+    command: -c supervisord/server.conf
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.cvat.loadbalancer.server.port=8080
+      - traefik.http.routers.cvat.rule=Host(`${CVAT_HOST:-localhost}`) &&
+        PathPrefix(`/api/`, `/git/`, `/opencv/`, `/static/`, `/admin`, `/documentation/`, `/django-rq`)
+      - traefik.http.routers.cvat.entrypoints=web
+    volumes:
+      - annotation_data:/home/django/data
+      - annotation_keys:/home/django/keys
+      - annotation_logs:/home/django/logs
+      - annotation_code:/home/django/cvat
+    networks:
+      secote:
+        ipv4_address: 172.19.0.3
+        aliases:
+          - cvat-server
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  nuclio:
+    container_name: nuclio
+    image: quay.io/nuclio/dashboard:1.8.14-amd64
+    restart: always
+    networks:
+      secote:
+        ipv4_address: 172.19.0.20
+    volumes:
+      - /tmp:/tmp
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      http_proxy:
+      https_proxy:
+      no_proxy: 172.28.0.1,${no_proxy:-}
+      NUCLIO_CHECK_FUNCTION_CONTAINERS_HEALTHINESS: 'true'
+      NUCLIO_DASHBOARD_DEFAULT_FUNCTION_MOUNT_MODE: 'volume'
+    ports:
+      - '8070:8070'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+        max-file: "3"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"        
+
+  annotation_utils:
+    container_name: annotation_utils
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_server:latest
+    restart: always
+    depends_on:
+      - annotation_redis
+      - annotation_db
+      - annotation_opa
+    environment:
+      CVAT_REDIS_HOST: 'annotation_redis'
+      CVAT_REDIS_PASSWORD: ''
+      CVAT_POSTGRES_HOST: 'annotation_db'
+      CLICKHOUSE_HOST: clickhouse
+      DJANGO_LOG_SERVER_HOST: vector
+      DJANGO_LOG_SERVER_PORT: 80
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+    command: -c supervisord/utils.conf
+    volumes:
+      - annotation_data:/home/django/data
+      - annotation_keys:/home/django/keys
+      - annotation_logs:/home/django/logs
+    networks:
+      secote:
+        ipv4_address: 172.19.0.4
+
+  annotation_worker_import:
+    container_name: annotation_worker_import
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_server:latest
+    restart: always
+    depends_on:
+      - annotation_redis
+      - annotation_db
+    environment:
+      CVAT_REDIS_HOST: 'annotation_redis'
+      CVAT_POSTGRES_HOST: 'annotation_db'
+      DJANGO_LOG_SERVER_HOST: vector
+      DJANGO_LOG_SERVER_PORT: 80
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      NUMPROCS: 2
+    command: -c supervisord/worker.import.conf
+    volumes:
+      - annotation_data:/home/django/data
+      - annotation_keys:/home/django/keys
+      - annotation_logs:/home/django/logs
+    networks:
+      secote:
+        ipv4_address: 172.19.0.5
+
+
+  annotation_worker_export:
+    container_name: annotation_worker_export
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_server:latest
+    restart: always
+    depends_on:
+      - annotation_redis
+      - annotation_db
+    environment:
+      CVAT_REDIS_HOST: 'annotation_redis'
+      CVAT_POSTGRES_HOST: 'annotation_db'
+      CLICKHOUSE_HOST: clickhouse
+      DJANGO_LOG_SERVER_HOST: vector
+      DJANGO_LOG_SERVER_PORT: 80
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      NUMPROCS: 2
+    command: -c supervisord/worker.export.conf
+    volumes:
+      - annotation_data:/home/django/data
+      - annotation_keys:/home/django/keys
+      - annotation_logs:/home/django/logs
+    networks:
+      secote:
+        ipv4_address: 172.19.0.6
+
+  annotation_worker_annotation:
+    container_name: annotation_worker_annotation
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_server:latest
+    restart: always
+    depends_on:
+      - annotation_redis
+      - annotation_db
+      - annotation_opa
+    environment:
+      CVAT_REDIS_HOST: 'annotation_redis'
+      CVAT_POSTGRES_HOST: 'annotation_db'
+      DJANGO_LOG_SERVER_HOST: vector
+      DJANGO_LOG_SERVER_PORT: 80
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      NUMPROCS: 1
+    command: -c supervisord/worker.annotation.conf
+    volumes:
+      - annotation_data:/home/django/data
+      - annotation_keys:/home/django/keys
+      - annotation_logs:/home/django/logs
+    networks:
+      secote:
+        ipv4_address: 172.19.0.7
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  annotation_worker_webhooks:
+    container_name: annotation_worker_webhooks
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_server:latest
+    restart: always
+    depends_on:
+      - annotation_redis
+      - annotation_db
+      - annotation_opa
+    environment:
+      CVAT_REDIS_HOST: 'annotation_redis'
+      CVAT_POSTGRES_HOST: 'annotation_db'
+      DJANGO_LOG_SERVER_HOST: vector
+      DJANGO_LOG_SERVER_PORT: 80
+      no_proxy: clickhouse,grafana,vector,nuclio,opa,${no_proxy:-}
+      NUMPROCS: 1
+    command: -c supervisord/worker.webhooks.conf
+    volumes:
+      - annotation_data:/home/django/data
+      - annotation_keys:/home/django/keys
+      - annotation_logs:/home/django/logs
+    networks:
+      secote:
+        ipv4_address: 172.19.0.8
+
+  annotation_ui:
+    container_name: annotation_ui
+    image: swr.cn-east-3.myhuaweicloud.com/secote/annotation_ui:latest
+    restart: always
+    depends_on:
+      - annotation_server
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.cvat-ui.loadbalancer.server.port=80
+      - traefik.http.routers.cvat-ui.rule=Host(`${CVAT_HOST:-localhost}`)
+      - traefik.http.routers.cvat-ui.entrypoints=web
+    networks:
+      secote:
+        ipv4_address: 172.19.0.9
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    restart: always
+    command:
+      - '--providers.docker.exposedByDefault=false'
+      - '--providers.docker.network=cvat'
+      - '--entryPoints.web.address=:8080'
+      - '--providers.file.directory=/etc/traefik/rules'
+    # Uncomment to get Traefik dashboard
+      - "--entryPoints.dashboard.address=:8090"
+      - "--api.dashboard=true"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.entrypoints=dashboard
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.rule=Host(`${CVAT_HOST:-localhost}`)
+    ports:
+      - 8080:8080
+      - 8090:8090
+    environment:
+      CVAT_HOST: ${CVAT_HOST:-localhost}
+      DJANGO_LOG_VIEWER_HOST: grafana
+      DJANGO_LOG_VIEWER_PORT: 3000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./components/analytics/grafana_conf.yml:/etc/traefik/rules/grafana_conf.yml:ro
+    networks:
+      secote:
+        ipv4_address: 172.19.0.10
+
+  annotation_opa:
+    container_name: annotation_opa
+    image: openpolicyagent/opa:0.45.0-rootless
+    restart: always
+    networks:
+      secote:
+        ipv4_address: 172.19.0.11
+        aliases:
+          - opa
+    command:
+      - run
+      - --server
+      - --log-level=error
+      - --set=services.cvat.url=http://172.19.0.3:8080
+      - --set=bundles.cvat.service=cvat
+      - --set=bundles.cvat.resource=/api/auth/rules
+      - --set=bundles.cvat.polling.min_delay_seconds=5
+      - --set=bundles.cvat.polling.max_delay_seconds=15
+
+  annotation_clickhouse:
+    container_name: annotation_clickhouse
+    image: clickhouse/clickhouse-server:22.3-alpine
+    restart: always
+    environment:
+      - CLICKHOUSE_DB=cvat
+      - CLICKHOUSE_USER=user
+      - CLICKHOUSE_PASSWORD=user
+    networks:
+      secote:
+        ipv4_address: 172.19.0.12
+        aliases:
+          - clickhouse
+    volumes:
+      - ./components/analytics/clickhouse/init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - annotation_events_db:/var/lib/clickhouse/
+
+  annotation_vector:
+    container_name: annotation_vector
+    image: timberio/vector:0.26.0-alpine
+    restart: always
+    depends_on:
+      - annotation_clickhouse
+    environment:
+      - CLICKHOUSE_DB=cvat
+      - CLICKHOUSE_USER=user
+      - CLICKHOUSE_PASSWORD=user
+      - CLICKHOUSE_HOST=clickhouse
+    networks:
+      secote:
+        ipv4_address: 172.19.0.13
+        aliases:
+          - vector
+    volumes:
+      - ./components/analytics/vector/vector.toml:/etc/vector/vector.toml:ro
+
+  annotation_grafana:
+    image: grafana/grafana-oss:9.3.6
+    container_name: annotation_grafana
+    restart: always
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_AUTH_BASIC_ENABLED=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=grafana-clickhouse-datasource
+      - GF_SERVER_ROOT_URL=http://${CVAT_HOST:-localhost}/analytics
+      - GF_INSTALL_PLUGINS=https://github.com/grafana/clickhouse-datasource/releases/download/v2.0.7/grafana-clickhouse-datasource-2.0.7.linux_amd64.zip;grafana-clickhouse-datasource
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/all_events.json
+    volumes:
+      - ./components/analytics/grafana/dashboards/:/var/lib/grafana/dashboards/:ro
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+          - name: 'ClickHouse'
+            type: 'grafana-clickhouse-datasource'
+            isDefault: true
+            jsonData:
+              defaultDatabase: cvat
+              port: 9000
+              server: clickhouse
+              username: user
+              tlsSkipVerify: false
+            secureJsonData:
+              password: user
+            editable: true
+        EOF
+        mkdir -p /etc/grafana/provisioning/dashboards
+        cat <<EOF > /etc/grafana/provisioning/dashboards/dashboard.yaml
+        apiVersion: 1
+        providers:
+          - name: cvat-logs
+            type: file
+            updateIntervalSeconds: 30
+            options:
+              path:  /var/lib/grafana/dashboards
+              foldersFromFilesStructure: true
+        EOF
+        exec /run.sh
+    networks:
+      secote:
+        ipv4_address: 172.19.0.14
+        aliases:
+          - grafana
+
+
+  server:
+    image: swr.cn-east-3.myhuaweicloud.com/secote/server:latest
+    container_name: webapp_server
+    restart: always
+    volumes:
+      - webapp_data:/data
+    ports:
+      - "5050:5050"
+    depends_on:
+      - mongo
+    env_file: ./server/.env
+    environment:
+      - NODE_ENV=development
+      - ENV=development
+    networks:
+      secote:
+        ipv4_address: 172.19.1.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  fiftyone:
+    image: swr.cn-east-3.myhuaweicloud.com/secote/fiftyone:latest
+    restart: always
+#    command: npm run start
+    volumes:
+      - ./server/:/usr/src/app
+      - /usr/src/app/node_modules
+      - webapp_data:/fiftyone
+    ports:
+      - "5151:5151"
+    depends_on:
+      - mongo
+    environment:
+      - FIFTYONE_DATABASE_URI=mongodb://mongodb:27017
+    networks:
+      secote:
+        ipv4_address: 172.19.1.2
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  mongo:
+    image: swr.cn-east-3.myhuaweicloud.com/secote/mongodb:latest
+    container_name: mongodb
+    restart: always
+    volumes:
+      - mongodb_volume:/data/db
+    ports:
+      - 27017:27017
+    networks:
+      secote:
+        ipv4_address: 172.19.1.3
+
+  mongo_express:
+    image: mongo-express:latest
+    container_name: mongo_express
+    restart: always
+    depends_on:
+      - mongo
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=secote
+      - ME_CONFIG_BASICAUTH_PASSWORD=secoteus
+    ports:
+      - "8081:8081"
+    networks:
+      secote:
+        ipv4_address: 172.19.1.4
+
+  ml_engine:
+    container_name: ml_engine
+    restart: always
+    image: swr.cn-east-3.myhuaweicloud.com/secote/ml_engine:latest
+    shm_size: '4gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    # log python print
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GIT_PYTHON_REFRESH=quiet
+    volumes:
+      - webapp_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .hasplm:/root/.hasplm
+    ports:
+      - 5000:5000
+    depends_on:
+      - mongo
+    networks:
+      secote:
+        ipv4_address: 172.19.1.5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+volumes:
+  annotation_db:
+  annotation_data:
+  webapp_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${APP_DATA_PATH}
+  annotation_keys:
+  annotation_logs:
+  annotation_events_db:
+  annotation_code:
+  mongodb_volume:
+  node_modules:
+
+networks:
+  secote:
+    ipam:
+        config:
+          - subnet: 172.19.0.0/16
+

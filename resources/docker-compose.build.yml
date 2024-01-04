@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  server:
+    build:
+      context: ./webApp/server
+      dockerfile: ./Dockerfile
+    image: swr.cn-east-3.myhuaweicloud.com/secote/server:latest
+    env_file: ./server/.env
+    environment:
+      - NODE_ENV=production
+      - ENV=production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  fiftyone:
+    build:
+      context: ./fiftyone
+      dockerfile: ./Dockerfile
+    image: swr.cn-east-3.myhuaweicloud.com/secote/fiftyone:latest
+    environment:
+      - FIFTYONE_DATABASE_URI=mongodb://mongodb:27017
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  mongo:
+    build:
+      context: ./webApp/database
+      dockerfile: ./Dockerfile
+    image: swr.cn-east-3.myhuaweicloud.com/secote/mongodb:latest
+
+  ml_engine:
+    build:
+      context: ./
+      dockerfile: ./webApp/mlAgent/Dockerfile
+      args:
+      - AREA=${AREA}
+    image: swr.cn-east-3.myhuaweicloud.com/secote/ml_engine:latest
+    environment:
+      - PYTHONUNBUFFERED=1
+      - NVIDIA_DISABLE_REQUIRE=1 # disable nvidia driver requirement
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

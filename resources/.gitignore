@@ -1,0 +1,16 @@
+# Ignore everything
+*
+# Allow files and directories
+!docker-compose.build.yml
+!docker-compose.deploy.yml
+!/resources/ml_agent_config.json
+!/fiftyone_config.json
+!/build.ps1
+!.gitignore
+!/build.sh
+!/push_images.ps1
+!/pull_images.ps1
+!/deploy.ps1
+!components/
+!server/
+!.env
