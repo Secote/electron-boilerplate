@@ -19,6 +19,7 @@
       "buildResources": "resources"
     },
     "win": {
+      "requestedExecutionLevel": "requireAdministrator",
       "target": [
         {
           "target": "nsis",

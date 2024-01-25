@@ -1,21 +1,19 @@
 !macro customInstall
-    MessageBox MB_OK "Custom Install Macro Called, the path is: $PLUGINSDIR"
-
+    ;MessageBox MB_OK "Custom Install Macro Called, the path is: $PLUGINSDIR"
     ; Copy all files from the BUILD_RESOURCES_DIR to the $PLUGINSDIR
+    DetailPrint  "Copy resource files..."
     SetOutPath "$PLUGINSDIR"
     File /r "${BUILD_RESOURCES_DIR}\*.*"
-
-    MessageBox MB_OK  "Executing PowerShell script..."
     ; switch to the $PLUGINSDIR\build\ directory
-    SetOutPath "$PLUGINSDIR\build\"
     ; Execute the PowerShell script
-    nsExec::ExecToStack  'powershell -ExecutionPolicy Bypass -File deploy.ps1'
-    Pop $0 ; Get the return value
-    Pop $1 ; Get the output
-    StrCmp $0 "0" success ; Check if the return value is 0
-    MessageBox MB_OK "Deployment failed. Output: $1"
-    Goto done
-    success:
-    MessageBox MB_OK "Deployment complete. Output: $1"
-    done:
+    ; run this powershell command: Set-ExecutionPolicy RemoteSigned
+    SetOutPath "$PLUGINSDIR\build\"
+    ;nsExec::ExecToStack 'powershell -ExecutionPolicy Bypass -File deploy.ps1'
+    DetailPrint  "Start pulling images..."
+    nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'
+    Pop $0
+    StrCmp $0 "ok" 0 +3
+    DetailPrint "Installation finished successfully"
+    Goto +2
+    DetailPrint "Failed to pull images."
 !macroend
