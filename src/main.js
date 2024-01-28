@@ -54,36 +54,13 @@ const setApplicationMenu = () => {
 };
 
 // We can communicate with our window (the renderer process) via messages.
-const initIpc = () => {
+const initIpc = (mainWindow) => {
   ipcMain.on("need-app-path", (event, arg) => {
     event.reply("app-path", app.getAppPath());
   });
   ipcMain.on("open-external-link", (event, href) => {
     shell.openExternal(href);
   });
-};
-
-app.on("ready", () => {
-  setApplicationMenu();
-  initIpc();
-
-  const mainWindow = createWindow("main", {
-    width: 1000,
-    height: 600,
-    webPreferences: {
-      // Spectron needs access to remote module
-      enableRemoteModule: env.name === "production"
-    }
-  });
-
-  mainWindow.loadURL(
-    "http://localhost:8080"
-  );
-
-  if (env.name === "development") {
-    mainWindow.openDevTools();
-  }
-
   const overlayWindow = createOverlayWindow(mainWindow);
   ipcMain.on("show-overlay", () => {
     overlayWindow.show();
@@ -94,7 +71,28 @@ app.on("ready", () => {
     overlayWindow.hide();
     console.log("Overlay window hidden");
   });
+};
 
+app.on("ready", () => {
+  setApplicationMenu();
+
+
+  const mainWindow = createWindow("main", {
+    width: 1000,
+    height: 600,
+    webPreferences: {
+      // Spectron needs access to remote module
+      enableRemoteModule: env.name === "production"
+    }
+  });
+  initIpc(mainWindow);
+  mainWindow.loadURL(
+    "http://localhost:8080"
+  );
+
+  if (env.name === "development") {
+    mainWindow.openDevTools();
+  }
 });
 
 app.on("window-all-closed", () => {

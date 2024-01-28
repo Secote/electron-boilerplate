@@ -5,7 +5,7 @@ export default {
   submenu: [
     // Add a new button
     {
-      label: "Run PowerShell Script",
+      label: "Restart Server",
       click: (menuItem, browserWindow) => {
         // Send a message to the renderer process to show the overlay
         browserWindow.webContents.send("show-overlay");
@@ -22,7 +22,7 @@ export default {
         // Execute your PowerShell script here
         // Example:
         const { exec } = require("child_process");
-        exec("docker-compose -f ./resources/build/docker-compose.deploy.yml up -d", (error, stdout, stderr) => {
+        exec("docker-compose -f ./resources/build/docker-compose.app.yml down --remove-orphans & docker-compose -f ./resources/build/docker-compose.app.yml up -d", (error, stdout, stderr) => {
           if (error) {
             console.error(`Error: ${error.message}`);
             return;
@@ -32,6 +32,17 @@ export default {
           // Notify the renderer process that the script execution is finished
           browserWindow.webContents.send("script-execution-finished");
         });
+      }
+    },
+    // Add a new button to reload the page
+    {
+      label: "Reload",
+      accelerator: "CmdOrCtrl+R",
+      click: (menuItem, browserWindow) => {
+        if (browserWindow) {
+          // Reload the current window/page
+          browserWindow.reload();
+        }
       }
     },
     {
