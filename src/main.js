@@ -3,8 +3,6 @@
 // It doesn't have any windows which you can see on screen, but we can open
 // window from here.
 
-import path from "path";
-import url from "url";
 import { app, Menu, ipcMain, shell } from "electron";
 import appMenuTemplate from "./menu/app_menu_template";
 import editMenuTemplate from "./menu/edit_menu_template";
@@ -14,6 +12,7 @@ import createWindow from "./helpers/window";
 // Special module holding environment variables which you declared
 // in config/env_xxx.json file.
 import env from "env";
+import path from "path";
 console.log(env.name);
 
 // Save userData in separate folders for each environment.
@@ -23,6 +22,28 @@ if (env.name !== "production") {
   const userDataPath = app.getPath("userData");
   app.setPath("userData", `${userDataPath} (${env.name})`);
 }
+
+// Add this function to create overlay window
+const createOverlayWindow = (mainWindow) => {
+  const overlayWindow = createWindow("overlay", {
+    width: 200,
+    height: 200,
+    parent: mainWindow,
+    modal: true,
+    frame: false,
+    show: false,
+    webPreferences: {
+      enableRemoteModule: env.name === "production",
+      nodeIntegration: true
+    }
+  });
+  const overlayFilePath = path.join(__dirname, "overlay.html");
+  console.log(`Overlay file path: ${overlayFilePath}`);
+  overlayWindow.loadURL(`file://${overlayFilePath}`);
+
+  return overlayWindow;
+};
+
 
 const setApplicationMenu = () => {
   const menus = [appMenuTemplate, editMenuTemplate];
@@ -62,6 +83,18 @@ app.on("ready", () => {
   if (env.name === "development") {
     mainWindow.openDevTools();
   }
+
+  const overlayWindow = createOverlayWindow(mainWindow);
+  ipcMain.on("show-overlay", () => {
+    overlayWindow.show();
+    console.log("Overlay window shown");
+  });
+
+  ipcMain.on("hide-overlay", () => {
+    overlayWindow.hide();
+    console.log("Overlay window hidden");
+  });
+
 });
 
 app.on("window-all-closed", () => {
