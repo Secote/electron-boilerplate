@@ -1,5 +1,10 @@
 !macro customInstall
-    ;MessageBox MB_OK "Custom Install Macro Called, the path is: $PLUGINSDIR"
+    SetOutPath "$TEMP"
+    DetailPrint "Temporary directory: $TEMP"
+    System::Call 'kernel32::OutputDebugString(t "Your message")'
+
+    SetDetailsView show
+    ; MessageBox MB_OK "Custom Install Macro Called, the path is: $PLUGINSDIR"
     ; Copy all files from the BUILD_RESOURCES_DIR to the $PLUGINSDIR
     DetailPrint  "Copy resource files..."
     SetOutPath "$PLUGINSDIR"

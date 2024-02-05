@@ -3,17 +3,18 @@
 // It doesn't have any windows which you can see on screen, but we can open
 // window from here.
 
-import { app, Menu, ipcMain, shell, net, BrowserWindow, ipcRenderer } from "electron";
-import appMenuTemplate from "./menu/app_menu_template";
+import { app, Menu, ipcMain, shell } from "electron";
+import {appMenuTemplate, setWindows} from "./menu/app_menu_template";
 import editMenuTemplate from "./menu/edit_menu_template";
 import devMenuTemplate from "./menu/dev_menu_template";
 import createWindow from "./helpers/window";
+import overlayView from "./helpers/overlay";
+import { checkUrlValidity } from "./helpers/web";
 
 // Special module holding environment variables which you declared
 // in config/env_xxx.json file.
 import env from "env";
-import path from "path";
-console.log(env.name);
+console.log("Environment is ", env.name);
 
 // Save userData in separate folders for each environment.
 // Thanks to this you can use production and development versions of the app
@@ -24,16 +25,7 @@ if (env.name !== "production") {
 }
 
 const APP_ENDPOINT = "http://localhost:8080";
-// Add this function to create overlay window
-const createOverlayWindow = (mainWindow) => {
-  const overlayFilePath = path.join(__dirname, "overlay.html");
-  const overlayWindow = new BrowserWindow({ parent: mainWindow, modal: false, transparent: true, show: false, center: true, frame: false, useContentSize: true, webPreferences: { nodeIntegration: true, defaultFontFamily: 'monospace' } });
-  overlayWindow.isMenuBarVisible = true;
-  overlayWindow.loadURL(overlayFilePath);
-  console.log(`Overlay file path: ${overlayFilePath}`);
-  return overlayWindow;
-};
-
+let overlayPage;
 
 const setApplicationMenu = () => {
   const menus = [appMenuTemplate, editMenuTemplate];
@@ -53,40 +45,8 @@ const initIpc = () => {
   });
 };
 
-
-// make this a synchronous function so we can return a value
-function checkUrlValidity(url, timeout = 5000) {
-  return new Promise((resolve, reject) => {
-    const request = net.request(url);
-
-    // Set a timeout for the request
-    const requestTimeout = setTimeout(() => {
-      request.abort(); // Abort the request
-      resolve(false); // Resolve the promise with false
-    }, timeout);
-
-    request.on('response', (response) => {
-      clearTimeout(requestTimeout); // Clear the timeout
-
-      const statusCode = response.statusCode;
-
-      if (statusCode === 200) {
-        resolve(true); // Resolve the promise with true for a valid page
-      } else {
-        resolve(false); // Resolve the promise with false for an invalid page
-      }
-    });
-
-    request.on('error', (error) => {
-      clearTimeout(requestTimeout); // Clear the timeout
-      reject(error); // Reject the promise with the error
-    });
-
-    request.end();
-  });
-}
-
 async function startServerIfNecessary(mainWindow) {
+  console.log(`startServerIfNecessary ${APP_ENDPOINT}...`);
   const targetUrl = APP_ENDPOINT;
   try {
     const isUrlValid = await checkUrlValidity(targetUrl, 2000); // Specify timeout in milliseconds
@@ -99,16 +59,15 @@ async function startServerIfNecessary(mainWindow) {
   } catch (error) {
     console.error(`Error checking ${targetUrl}: ${error.message}`);
   }
-  const overlayWindow = createOverlayWindow(mainWindow);
-  overlayWindow.once("ready-to-show", () => {
-    overlayWindow.show();
-  });
-  //window.electronAPI.showOverlay();
+  overlayPage.show();
+
+  //window.electronAPI.show();
   // Start the server if it's not running
   const { exec } = require("child_process");
   exec("docker-compose -f ./resources/build/docker-compose.app.yml up -d", (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error.message}`);
+      overlayPage.hide();
       return;
     }
     console.log(`Script Output: ${stdout}`);
@@ -116,10 +75,9 @@ async function startServerIfNecessary(mainWindow) {
     //window.electronAPI.hideOverloay();
   }).on('exit', (code) => {
     console.log(`Child exited with code ${code}`);
-    overlayWindow.hide();
-    mainWindow.loadURL(targetUrl); });
+    overlayPage.hide();
+  });
 }
-
 app.on("ready", () => {
   const mainWindow = createWindow("main", {
     width: 1000,
@@ -127,12 +85,21 @@ app.on("ready", () => {
     webPreferences: {
       // Spectron needs access to remote module
       enableRemoteModule: env.name === "production",
-      preload: path.join(__dirname, 'preload.js')
+      // preload: path.join(__dirname, 'preload.js'),
+
     }
   });
+  overlayPage = overlayView(mainWindow);
+
+  setWindows(mainWindow, overlayPage); // Pass a reference to the mainWindow to the menu template
+
+  console.log(" setApplicationMenu ");
   setApplicationMenu();
+  console.log(" initIpc ");
   initIpc();
+  console.log(" startServerIfNecessary ");
   startServerIfNecessary(mainWindow);
+  // mainWindow.webContents.openDevTools()
 });
 
 app.on("window-all-closed", () => {

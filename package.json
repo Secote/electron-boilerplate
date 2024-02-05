@@ -13,6 +13,7 @@
     "files": [
       "app/**/*",
       "node_modules/**/*",
+      "resources/**/*",
       "package.json"
     ],
     "directories": {
@@ -68,7 +69,7 @@
     "babel-loader": "^8.2.2",
     "chai": "^4.1.0",
     "css-loader": "^5.2.0",
-    "electron": "^28.1.3",
+    "electron": "^28.2.1",
     "electron-builder": "^22.5.1",
     "electron-mocha": "^12.2.0",
     "mocha": "^10.2.0",

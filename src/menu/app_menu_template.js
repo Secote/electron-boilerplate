@@ -1,36 +1,79 @@
-import { app, shell, ipcMain, BrowserWindow } from "electron";
+import { app } from "electron";
+import { checkUrlValidity } from "../helpers/web";
 
-export default {
+let mainWindow; // Reference to the mainWindow
+let overlayWindow; // Reference to the overlayWindow
+function setWindows(win, overlayWin) {
+  mainWindow = win;
+  overlayWindow = overlayWin;
+}
+const APP_ENDPOINT = "http://localhost:8080";
+
+const appMenuTemplate = {
   label: "App",
   submenu: [
+    {
+      label: "Check URL Validity",
+      click: async () => {
+          console.log(`Check URL Validity clicked in the menu bar`, await checkUrlValidity("http://localhost:8080", 2000));
+      }
+    },
+    {
+      label: "Show Window",
+      click: () => {
+        // Send a message to the renderer process to show the overlay
+        // Access the mainWindow from the click handler
+        if (overlayWindow) {
+          // Perform actions using mainWindow
+          overlayWindow.show();
+          console.log(`Show Window clicked in the menu bar`);
+        }
+      }
+    },
+    {
+      label: "Hide Window",
+      click: () => {
+        // Send a message to the renderer process to show the overlay
+        // Access the mainWindow from the click handler
+        if (overlayWindow) {
+          // Perform actions using mainWindow
+          overlayWindow.hide();
+          console.log(`Hide Window clicked in the menu bar`);
+        }
+      }
+    },
     // Add a new button
     {
       label: "Restart Server",
-      click: (menuItem, browserWindow) => {
+      click: () => {
         // Send a message to the renderer process to show the overlay
-        browserWindow.webContents.send("show-overlay");
-
-        // Execute the PowerShell script
-        ipcMain.once("script-execution-finished", () => {
-          // Send a message to the renderer process to hide the overlay
-          browserWindow.webContents.send("hide-overlay");
-          console.log("Script execution finished");
-          // Reload the current page
-          browserWindow.reload();
-        });
-
+        // Access the mainWindow from the click handler
+        if (overlayWindow) {
+          // Perform actions using mainWindow
+          overlayWindow.show();
+        }
+        console.log(`Restart Server clicked in the menu bar`);
         // Execute your PowerShell script here
         // Example:
         const { exec } = require("child_process");
-        exec("docker-compose -f ./resources/build/docker-compose.app.yml down --remove-orphans & docker-compose -f ./resources/build/docker-compose.app.yml up -d", (error, stdout, stderr) => {
+        exec("docker-compose -f ./resources/build/docker-compose.app.yml down --remove-orphans & docker-compose -f ./resources/build/docker-compose.app.yml up -d", async (error, stdout, stderr) => {
           if (error) {
             console.error(`Error: ${error.message}`);
+            while (!await checkUrlValidity(APP_ENDPOINT, 2000)) {
+              // sleep for 2 second
+              await new Promise(r => setTimeout(r, 2000));
+              console.log(`Waiting for ${APP_ENDPOINT} to be available...`);
+              overlayWindow.hide();
+            }
             return;
           }
           console.log(`Script Output: ${stdout}`);
           console.error(`Script Error: ${stderr}`);
           // Notify the renderer process that the script execution is finished
-          browserWindow.webContents.send("script-execution-finished");
+          if (overlayWindow) {
+            // Perform actions using mainWindow
+            overlayWindow.hide();
+          }
         });
       }
     },
@@ -54,3 +97,5 @@ export default {
     }
   ]
 };
+
+export { appMenuTemplate, setWindows };
