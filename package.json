@@ -13,8 +13,10 @@
     "files": [
       "app/**/*",
       "node_modules/**/*",
-      "resources/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      "secote/**/*"
     ],
     "directories": {
       "buildResources": "resources"

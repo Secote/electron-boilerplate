@@ -14,6 +14,7 @@ import { checkUrlValidity } from "./helpers/web";
 // Special module holding environment variables which you declared
 // in config/env_xxx.json file.
 import env from "env";
+import path from "path";
 console.log("Environment is ", env.name);
 
 // Save userData in separate folders for each environment.
@@ -64,9 +65,13 @@ async function startServerIfNecessary(mainWindow) {
   //window.electronAPI.show();
   // Start the server if it's not running
   const { exec } = require("child_process");
-  exec("docker-compose -f ./resources/build/docker-compose.app.yml up -d", (error, stdout, stderr) => {
+  exec("docker-compose -f ./resources/secote/docker-compose.app.yml up -d", async (error, stdout, stderr) => {
     if (error) {
       console.error(`Error: ${error.message}`);
+      while (!await checkUrlValidity(targetUrl, 2000)) {
+        console.log(`Waiting for ${targetUrl} to be valid...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
       overlayPage.hide();
       return;
     }
@@ -85,8 +90,7 @@ app.on("ready", () => {
     webPreferences: {
       // Spectron needs access to remote module
       enableRemoteModule: env.name === "production",
-      // preload: path.join(__dirname, 'preload.js'),
-
+      preload: path.join(__dirname, 'preload.js'),
     }
   });
   overlayPage = overlayView(mainWindow);
