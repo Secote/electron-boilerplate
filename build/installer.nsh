@@ -1,5 +1,10 @@
 !macro customInstall
-    ;MessageBox MB_OK "Custom Install Macro Called, the path is: $PLUGINSDIR"
+    SetOutPath "$TEMP"
+    DetailPrint "Temporary directory: $TEMP"
+    System::Call 'kernel32::OutputDebugString(t "Your message")'
+
+    SetDetailsView show
+    ; MessageBox MB_OK "Custom Install Macro Called, the path is: $PLUGINSDIR"
     ; Copy all files from the BUILD_RESOURCES_DIR to the $PLUGINSDIR
     DetailPrint  "Copy resource files..."
     SetOutPath "$PLUGINSDIR"
@@ -10,6 +15,7 @@
     SetOutPath "$PLUGINSDIR\build\"
     ;nsExec::ExecToStack 'powershell -ExecutionPolicy Bypass -File deploy.ps1'
     DetailPrint  "Start pulling images..."
+    nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'
     nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'
     Pop $0
     StrCmp $0 "ok" 0 +3

@@ -4,16 +4,18 @@
 // window from here.
 
 import { app, Menu, ipcMain, shell } from "electron";
-import appMenuTemplate from "./menu/app_menu_template";
+import {appMenuTemplate, setWindows} from "./menu/app_menu_template";
 import editMenuTemplate from "./menu/edit_menu_template";
 import devMenuTemplate from "./menu/dev_menu_template";
 import createWindow from "./helpers/window";
+import overlayView from "./helpers/overlay";
+import { checkUrlValidity } from "./helpers/web";
 
 // Special module holding environment variables which you declared
 // in config/env_xxx.json file.
 import env from "env";
 import path from "path";
-console.log(env.name);
+console.log("Environment is ", env.name);
 
 // Save userData in separate folders for each environment.
 // Thanks to this you can use production and development versions of the app
@@ -23,27 +25,8 @@ if (env.name !== "production") {
   app.setPath("userData", `${userDataPath} (${env.name})`);
 }
 
-// Add this function to create overlay window
-const createOverlayWindow = (mainWindow) => {
-  const overlayWindow = createWindow("overlay", {
-    width: 200,
-    height: 200,
-    parent: mainWindow,
-    modal: true,
-    frame: false,
-    show: false,
-    webPreferences: {
-      enableRemoteModule: env.name === "production",
-      nodeIntegration: true
-    }
-  });
-  const overlayFilePath = path.join(__dirname, "overlay.html");
-  console.log(`Overlay file path: ${overlayFilePath}`);
-  overlayWindow.loadURL(`file://${overlayFilePath}`);
-
-  return overlayWindow;
-};
-
+const APP_ENDPOINT = "http://localhost:8080";
+let overlayPage;
 
 const setApplicationMenu = () => {
   const menus = [appMenuTemplate, editMenuTemplate];
@@ -63,38 +46,64 @@ const initIpc = () => {
   });
 };
 
-app.on("ready", () => {
-  setApplicationMenu();
-  initIpc();
+async function startServerIfNecessary(mainWindow) {
+  console.log(`startServerIfNecessary ${APP_ENDPOINT}...`);
+  const targetUrl = APP_ENDPOINT;
+  try {
+    const isUrlValid = await checkUrlValidity(targetUrl, 2000); // Specify timeout in milliseconds
+    console.log(`isUrlValid: ${isUrlValid}`);
+    if (isUrlValid) {
+      console.log(`${targetUrl} is valid`);
+      mainWindow.loadURL(targetUrl);
+      return;
+    }
+  } catch (error) {
+    console.error(`Error checking ${targetUrl}: ${error.message}`);
+  }
+  overlayPage.show();
 
+  //window.electronAPI.show();
+  // Start the server if it's not running
+  const { exec } = require("child_process");
+  exec("docker-compose -f ./resources/secote/docker-compose.app.yml up -d", async (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error: ${error.message}`);
+      while (!await checkUrlValidity(targetUrl, 2000)) {
+        console.log(`Waiting for ${targetUrl} to be valid...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      overlayPage.hide();
+      return;
+    }
+    console.log(`Script Output: ${stdout}`);
+    console.error(`Script Error: ${stderr}`);
+    //window.electronAPI.hideOverloay();
+  }).on('exit', (code) => {
+    console.log(`Child exited with code ${code}`);
+    overlayPage.hide();
+  });
+}
+app.on("ready", () => {
   const mainWindow = createWindow("main", {
     width: 1000,
     height: 600,
     webPreferences: {
       // Spectron needs access to remote module
-      enableRemoteModule: env.name === "production"
+      enableRemoteModule: env.name === "production",
+      preload: path.join(__dirname, 'preload.js'),
     }
   });
+  overlayPage = overlayView(mainWindow);
 
-  mainWindow.loadURL(
-    "http://localhost:8080"
-  );
+  setWindows(mainWindow, overlayPage); // Pass a reference to the mainWindow to the menu template
 
-  if (env.name === "development") {
-    mainWindow.openDevTools();
-  }
-
-  const overlayWindow = createOverlayWindow(mainWindow);
-  ipcMain.on("show-overlay", () => {
-    overlayWindow.show();
-    console.log("Overlay window shown");
-  });
-
-  ipcMain.on("hide-overlay", () => {
-    overlayWindow.hide();
-    console.log("Overlay window hidden");
-  });
-
+  console.log(" setApplicationMenu ");
+  setApplicationMenu();
+  console.log(" initIpc ");
+  initIpc();
+  console.log(" startServerIfNecessary ");
+  startServerIfNecessary(mainWindow);
+  // mainWindow.webContents.openDevTools()
 });
 
 app.on("window-all-closed", () => {

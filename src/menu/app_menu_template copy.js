@@ -1,5 +1,6 @@
 import { app } from "electron";
 import { checkUrlValidity } from "../helpers/web";
+import path from "path";
 
 let mainWindow; // Reference to the mainWindow
 let overlayWindow; // Reference to the overlayWindow
@@ -12,10 +13,51 @@ const APP_ENDPOINT = "http://localhost:8080";
 const appMenuTemplate = {
   label: "App",
   submenu: [
+    {
+      label: "Show Text Window",
+      click: () => {
+         mainWindow.loadURL(path.join(__dirname, 'text.html'));
+      }
+    },
+    {
+      label: "Show Text",
+      click: () => {
+        mainWindow.webContents.send('update-text', "Show my text");
+      }
+    },
+    {
+      label: "Check URL Validity",
+      click: async () => {
+          console.log(`Check URL Validity clicked in the menu bar`, await checkUrlValidity("http://localhost:8080", 2000));
+      }
+    },
+    {
+      label: "Show Window",
+      click: () => {
+        // Send a message to the renderer process to show the overlay
+        // Access the mainWindow from the click handler
+        if (overlayWindow) {
+          // Perform actions using mainWindow
+          overlayWindow.show();
+          console.log(`Show Window clicked in the menu bar`);
+        }
+      }
+    },
+    {
+      label: "Hide Window",
+      click: () => {
+        // Send a message to the renderer process to show the overlay
+        // Access the mainWindow from the click handler
+        if (overlayWindow) {
+          // Perform actions using mainWindow
+          overlayWindow.hide();
+          console.log(`Hide Window clicked in the menu bar`);
+        }
+      }
+    },
     // Add a new button
     {
       label: "Restart Server",
-      accelerator: "CmdOrCtrl+S",
       click: () => {
         // Send a message to the renderer process to show the overlay
         // Access the mainWindow from the click handler
@@ -37,8 +79,6 @@ const appMenuTemplate = {
               await new Promise(r => setTimeout(r, 2000));
               console.log(`Waiting for ${APP_ENDPOINT} to be available...`);
             }
-            // wait for 50 seconds
-            await new Promise(r => setTimeout(r, 50000));
             overlayWindow.hide();
             return;
           }
@@ -47,7 +87,6 @@ const appMenuTemplate = {
           // Notify the renderer process that the script execution is finished
           if (overlayWindow) {
             // Perform actions using mainWindow
-            await new Promise(r => setTimeout(r, 50000));
             overlayWindow.hide();
           }
         });
