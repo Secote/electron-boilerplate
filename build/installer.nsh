@@ -16,6 +16,7 @@
     ;nsExec::ExecToStack 'powershell -ExecutionPolicy Bypass -File deploy.ps1'
     DetailPrint  "Start pulling images..."
     nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'
+    nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'
     Pop $0
     StrCmp $0 "ok" 0 +3
     DetailPrint "Installation finished successfully"
