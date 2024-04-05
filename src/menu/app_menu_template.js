@@ -1,5 +1,6 @@
 import { app } from "electron";
 import { checkUrlValidity } from "../helpers/web";
+import path from "path";
 
 let mainWindow; // Reference to the mainWindow
 let overlayWindow; // Reference to the overlayWindow
@@ -28,7 +29,9 @@ const appMenuTemplate = {
         // Execute your PowerShell script here
         // Example:
         const { exec } = require("child_process");
-        exec("docker-compose -f ./resources/secote/docker-compose.app.yml down --remove-orphans & docker-compose -f ./resources/secote/docker-compose.app.yml up -d", async (error, stdout, stderr) => {
+        // const dockerComposePath = path.join(__dirname, '../../', 'secote', 'docker-compose.deploy.yml');
+        // exec(`docker-compose -f "${dockerComposePath}" down --remove-orphans & docker-compose -f "${dockerComposePath}" up -d`, async (error, stdout, stderr) => {
+        exec("docker-compose -f ../../secote/docker-compose.deploy.yml down --remove-orphans & docker-compose -f ../../secote/docker-compose.deploy.yml up -d", async (error, stdout, stderr) => {
           if (error) {
             console.error(`Error: ${error.message}`);
             // mainWindow.webContents.send('update-text', error.message);

@@ -14,7 +14,7 @@
     ; Execute the PowerShell script
     ; run this powershell command: Set-ExecutionPolicy RemoteSigned
     SetOutPath "$INSTDIR\resources\secote\"
-    MessageBox MB_OK "       Return value: $INSTDIR\resources\secote\"
+    ;MessageBox MB_OK "       Return value: $INSTDIR\resources\secote\"
     ;nsExec::ExecToStack 'powershell -ExecutionPolicy Bypass -File deploy.ps1'
     DetailPrint  "Start pulling images..."
     nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'

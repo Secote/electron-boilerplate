@@ -1,6 +1,6 @@
 {
-  "name": "IndustryVision",
-  "productName": "IndustryVision (Beta)",
+  "name": "INVI",
+  "productName": "INVI (Beta)",
   "description": "AI powered vision inspection for manufacturing",
   "version": "1.0.0",
   "private": true,
@@ -71,7 +71,7 @@
     "babel-loader": "^8.2.2",
     "chai": "^4.1.0",
     "css-loader": "^5.2.0",
-    "electron": "^28.2.1",
+    "electron": "^29.1.1",
     "electron-builder": "^22.5.1",
     "electron-mocha": "^12.2.0",
     "mocha": "^10.2.0",

@@ -65,15 +65,17 @@ const appMenuTemplate = {
           // Perform actions using mainWindow
           overlayWindow.show();
         }
-        // mainWindow.loadURL(path.join(__dirname, 'text.html'));
+        mainWindow.loadURL(path.join(__dirname, 'text.html'));
         console.log(`Restart Server clicked in the menu bar`);
         // Execute your PowerShell script here
         // Example:
         const { exec } = require("child_process");
+        const dockerComposePath = path.join(__dirname, '../../', 'secote', 'docker-compose.deploy.yml');
+        mainWindow.webContents.send('update-text', dockerComposePath);
         exec("docker-compose -f ./resources/secote/docker-compose.app.yml down --remove-orphans & docker-compose -f ./resources/secote/docker-compose.app.yml up -d", async (error, stdout, stderr) => {
           if (error) {
             console.error(`Error: ${error.message}`);
-            // mainWindow.webContents.send('update-text', error.message);
+            mainWindow.webContents.send('update-text', error.message);
             while (!await checkUrlValidity(APP_ENDPOINT, 2000)) {
               // sleep for 2 second
               await new Promise(r => setTimeout(r, 2000));
