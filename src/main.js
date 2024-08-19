@@ -54,64 +54,19 @@ const initIpc = () => {
 };
 
 async function startServerIfNecessary(mainWindow) {
-  console.log(`startServerIfNecessary ${APP_ENDPOINT}...`);
-  const targetUrl = APP_ENDPOINT;
 
-
-   //start the flask server
-  const workingDir = path.join(__dirname, '../../', 'secote', 'webApp', 'mlAgent');
-  const wslPath = workingDir.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
-  const logFilePath = `${wslPath}/flask-server.log`;
-  const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'FLASK_DEBUG=1 FLASK_APP=agent.py flask run -h 0.0.0.0 -p 5000 >> "${logFilePath}" 2>&1'`;
-
-
-  flaskProcess = exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd: workingDir }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error: ${error.message}`);
-      return;
-    }
-    console.log(`Flask server started, see logs in ${logFile} for details.`);
-  });
-
-  try {
-    const isUrlValid = await checkUrlValidity(targetUrl, 2000); // Specify timeout in milliseconds
-    console.log(`isUrlValid: ${isUrlValid}`);
-    if (isUrlValid) {
-      console.log(`${targetUrl} is valid`);
-      mainWindow.loadURL(targetUrl);
-      return;
-    }
-  } catch (error) {
-    console.error(`Error checking ${targetUrl}: ${error.message}`);
-  }
   overlayPage.show();
 
-  //window.electronAPI.show();
- 
+  const workingDir = path.join(__dirname, '../../', 'secote', 'webApp');
+  const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 start ecosystem.config.js --env production'`;
 
-  
-  // 启动Docker容器
-  const dockerComposePath = path.join(__dirname, '../../', 'secote', 'docker-compose.deploy.yml');
-  
-
-  exec("docker-compose -f " + dockerComposePath + " up -d", async (error, stdout, stderr) => {
+  exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd : workingDir }, (error, stdout, stderr) => {
     if (error) {
-      console.error(`Error: ${error.message}`);
-      while (!await checkUrlValidity(targetUrl, 2000)) {
-        console.log(`Waiting for ${targetUrl} to be valid...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      overlayPage.hide();
-      return;
+      console.error(`==Error: ${error.message}`);
+      return openErrorDialog()
     }
-    console.log(`Script Output: ${stdout}`);
-    console.error(`Script Error: ${stderr}`);
-    //window.electronAPI.hideOverloay();
-  }).on('exit', (code) => {
-    console.log(`Child exited with code ${code}`);
-    overlayPage.hide();
   });
-  
+  overlayPage.hide();
 }
 
 app.on("ready", () => {
