@@ -3,7 +3,7 @@
 // It doesn't have any windows which you can see on screen, but we can open
 // window from here.
 
-import { app, Menu, ipcMain, shell } from "electron";
+import { app, Menu, ipcMain, shell, dialog } from "electron";
 import {appMenuTemplate, setWindows} from "./menu/app_menu_template";
 import editMenuTemplate from "./menu/edit_menu_template";
 import devMenuTemplate from "./menu/dev_menu_template";
@@ -58,12 +58,13 @@ async function startServerIfNecessary(mainWindow) {
   overlayPage.show();
 
   const workingDir = path.join(__dirname, '../../', 'secote', 'webApp');
+  // const wslPath = workingDir.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
   const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 start ecosystem.config.js --env production'`;
-
+  // dialog.showMessageBox({message: workingDir});
   exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd : workingDir }, (error, stdout, stderr) => {
     if (error) {
       console.error(`==Error: ${error.message}`);
-      return openErrorDialog()
+      return;
     }
   });
   overlayPage.hide();

@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "private": true,
   "author": "IndustryVision",
-  "copyright": "© 2023, IndustryVision inc.",
+  "copyright": "© 2024, IndustryVision inc.",
   "homepage": "http://www.industryvision.com/",
   "main": "app/main.js",
   "build": {
@@ -63,6 +63,7 @@
     "dist": "electron-builder"
   },
   "dependencies": {
+    "7zip-bin": "^5.2.0",
     "fs-jetpack": "^4.1.0"
   },
   "devDependencies": {

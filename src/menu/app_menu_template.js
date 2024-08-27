@@ -1,4 +1,4 @@
-import { app } from "electron";
+import { app, dialog } from "electron";
 import { checkUrlValidity } from "../helpers/web";
 import path from "path";
 
@@ -29,9 +29,13 @@ const appMenuTemplate = {
         // Execute your PowerShell script here
         // Example:
         const { exec } = require("child_process");
-        // const dockerComposePath = path.join(__dirname, '../../', 'secote', 'docker-compose.deploy.yml');
-        // exec(`docker-compose -f "${dockerComposePath}" down --remove-orphans & docker-compose -f "${dockerComposePath}" up -d`, async (error, stdout, stderr) => {
-        exec("docker-compose -f ../../secote/docker-compose.deploy.yml down --remove-orphans & docker-compose -f ../../secote/docker-compose.deploy.yml up -d", async (error, stdout, stderr) => {
+        const workingDir = path.join(__dirname, '../../', 'secote', 'webApp');
+        const wslPath = workingDir.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
+        
+        dialog.showMessageBox({message: workingDir});
+        const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 start ecosystem.config.js --env production'`;
+
+        exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd : wslPath }, async (error, stdout, stderr) => {
           if (error) {
             console.error(`Error: ${error.message}`);
             // mainWindow.webContents.send('update-text', error.message);
