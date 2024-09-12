@@ -23,6 +23,8 @@ import env from "env";
 console.log("Environment is ", env.name);
 console.log(process.versions.node);
 
+app.commandLine.appendSwitch("no-sandbox"); 
+
 
 // Save userData in separate folders for each environment.
 // Thanks to this you can use production and development versions of the app
@@ -64,10 +66,14 @@ async function startServerIfNecessary(mainWindow) {
   exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd : workingDir }, (error, stdout, stderr) => {
     if (error) {
       console.error(`==Error: ${error.message}`);
+      overlayPage.hide();
+      dialog.showErrorBox("Error", `Error starting server: ${error.message}`);
       return;
     }
+    mainWindow.loadURL(APP_ENDPOINT);
+    overlayPage.hide();
   });
-  overlayPage.hide();
+  
 }
 
 app.on("ready", () => {

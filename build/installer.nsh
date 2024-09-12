@@ -1,3 +1,4 @@
+RequestExecutionLevel admin
 !macro customInstall
     SetOutPath "$TEMP"
     DetailPrint "Temporary directory: $TEMP"
@@ -19,7 +20,7 @@
     ;DetailPrint  "Start pulling images..."
     ;nsExec::Exec 'powershell -ExecutionPolicy Bypass -File pull_images.ps1'
     DetailPrint  "Start installing conda environment..."
-    nsExec::Exec 'powershell -ExecutionPolicy Bypass -File deployEnv.ps1'
+    nsExec::ExecToStack 'powershell -ExecutionPolicy Bypass -File deployEnv.ps1'
     ;print information about the ps1
     ;nsExec::ExecToStack 'powershell -ExecutionPolicy Bypass -File deployEnv.ps1'
     ;Pop $0 # return value/error/timeout

@@ -32,7 +32,7 @@ const appMenuTemplate = {
         const workingDir = path.join(__dirname, '../../', 'secote', 'webApp');
         const wslPath = workingDir.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
         
-        dialog.showMessageBox({message: workingDir});
+        // dialog.showMessageBox({message: workingDir});
         const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 start ecosystem.config.js --env production'`;
 
         exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd : wslPath }, async (error, stdout, stderr) => {

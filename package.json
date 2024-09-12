@@ -73,7 +73,7 @@
     "chai": "^4.1.0",
     "css-loader": "^5.2.0",
     "electron": "^29.1.1",
-    "electron-builder": "^22.5.1",
+    "electron-builder": "^22.14.13",
     "electron-mocha": "^12.2.0",
     "mocha": "^10.2.0",
     "source-map-support": "^0.5.6",
