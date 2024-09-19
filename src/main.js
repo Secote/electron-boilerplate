@@ -14,7 +14,11 @@ import { checkUrlValidity } from "./helpers/web";
 const fs = require('fs');
 const path = require('path');
 const { exec } = require("child_process");
+const util = require('util');
+const execAsync = util.promisify(exec);
+
 let flaskProcess = null; // 用于存储Flask服务器的子进程
+
 
 // Special module holding environment variables which you declared
 // in config/env_xxx.json file.
@@ -24,6 +28,8 @@ console.log("Environment is ", env.name);
 console.log(process.versions.node);
 
 app.commandLine.appendSwitch("no-sandbox"); 
+
+
 
 
 // Save userData in separate folders for each environment.
@@ -60,20 +66,41 @@ async function startServerIfNecessary(mainWindow) {
   overlayPage.show();
 
   const workingDir = path.join(__dirname, '../../', 'secote', 'webApp');
-  // const wslPath = workingDir.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
   const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 start ecosystem.config.js --env production'`;
-  // dialog.showMessageBox({message: workingDir});
-  exec(`wsl -d Ubuntu bash -c "${command}"`, { cwd : workingDir }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`==Error: ${error.message}`);
-      overlayPage.hide();
-      dialog.showErrorBox("Error", `Error starting server: ${error.message}`);
-      return;
+
+  try {
+
+    // 获取当前 WSL 的 IP 地址
+    const { stdout: ipOutput } = await execAsync(`wsl -d Ubuntu bash -c "ip addr show eth0 | grep 'inet ' | awk '{print \\$2}' | cut -d/ -f1"`);
+    const WSL_IP = ipOutput.trim();
+  
+    const ports = [5050, 8080, 9090, 9091];
+  
+    for (const port of ports) {
+      // 删除旧的端口转发规则
+      try {
+        await execAsync(`netsh interface portproxy delete v4tov4 listenport=${port} listenaddress=0.0.0.0`);
+      } catch (error) {
+        console.error(`删除端口 ${port} 的旧端口转发规则时出错：${error.message}`);
+        // 继续执行，因为规则可能不存在
+      }
+  
+      // 添加新的端口转发规则
+      await execAsync(`netsh interface portproxy add v4tov4 listenport=${port} listenaddress=0.0.0.0 connectport=${port} connectaddress=${WSL_IP}`);
     }
+  
+    // 启动服务器
+    await execAsync(`wsl -d Ubuntu bash -c "${command}"`, { cwd: workingDir });
+  
+    // 加载应用程序
     mainWindow.loadURL(APP_ENDPOINT);
     overlayPage.hide();
-  });
   
+  } catch (error) {
+    console.error(`发生错误：${error.message}`);
+    overlayPage.hide();
+    dialog.showErrorBox("错误", `启动服务器时发生错误：${error.message}`);
+  }
 }
 
 app.on("ready", () => {
