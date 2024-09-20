@@ -146,11 +146,15 @@ function stopDockerContainers() {
   });
 }
 
+function stopPM2Service() {
+  const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 delete all'`;
+  exec(`wsl -d Ubuntu bash -c "${command}"`);
+}
+
 app.on('before-quit', () => {
-  // stopFlaskServer(); // 在应用退出前停止Flask服务器
-  // stopDockerContainers(); // 停止Docker容器 
+  stopPM2Service(); // 同步停止 PM2 服务
 });
 
-app.on("window-all-closed", () => {
+app.on('window-all-closed', () => {
   app.quit();
 });
