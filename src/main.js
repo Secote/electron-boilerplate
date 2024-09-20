@@ -147,8 +147,13 @@ function stopDockerContainers() {
 }
 
 function stopPM2Service() {
-  const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'pm2 delete all'`;
-  exec(`wsl -d Ubuntu bash -c "${command}"`);
+  const command = `/home/secote/miniconda3/bin/conda run -n base_conda --no-capture-output bash -c 'torchserve --stop && pm2 delete all'`;
+  try {
+    exec(`wsl -d Ubuntu bash -c "${command}"`);
+    console.log('服务已成功停止。');
+  } catch (error) {
+    console.error('停止服务时发生错误：', error);
+  }
 }
 
 app.on('before-quit', () => {
